@@ -3,7 +3,6 @@ package com.ecommerce.order.repositary;
 
 import com.ecommerce.order.model.CartItem;
 import jakarta.transaction.Transactional;
-import org.apache.catalina.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

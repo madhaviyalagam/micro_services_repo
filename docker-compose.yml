@@ -11,8 +11,9 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/data/postgres
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     networks:
-      - postgres
+      - microservices
 
   pgadmin:
     image: dpage/pgadmin4
@@ -25,10 +26,10 @@ services:
     ports:
       - "5050:80"
     networks:
-      - postgres
+      - microservices
 
 networks:
-  postgres:
+  microservices:
     driver: bridge
 
 volumes:

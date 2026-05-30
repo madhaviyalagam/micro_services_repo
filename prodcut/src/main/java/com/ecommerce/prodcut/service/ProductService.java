@@ -35,6 +35,11 @@ public class ProductService {
         return productRepository.getAllByActiveTrue();
     }
 
+    public Optional<Product> getProductById(Long id) {
+        return productRepository.findById(id)
+                .filter(product -> Boolean.TRUE.equals(product.getActive()));
+    }
+
     public boolean deleteProduct(Long id) {
         productRepository.deleteById(id);
        return productRepository.existsById(id);

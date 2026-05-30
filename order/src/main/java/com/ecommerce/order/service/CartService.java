@@ -1,46 +1,73 @@
 package com.ecommerce.order.service;
 
+import com.ecommerce.order.client.ProductClient;
+import com.ecommerce.order.client.UserClient;
+import com.ecommerce.order.dto.ProductResponse;
 import com.ecommerce.order.model.CartItem;
 import com.ecommerce.order.model.CartItemRequest;
 import com.ecommerce.order.repositary.CartRepository;
-import lombok.Data;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
-import org.apache.catalina.User;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 
 @Service
-@Data
 @RequiredArgsConstructor
-
 public class CartService {
 
-    public final CartRepository cartRepository;
-    public boolean addToCart(String userId, CartItemRequest request) {
+	private final CartRepository cartRepository;
+	private final UserClient userClient;
+	private final ProductClient productClient;
 
-           CartItem item = new CartItem();
+	public boolean addToCart(String userId, CartItemRequest request) {
+		try {
+			userClient.getUserById(Long.valueOf(userId));
+		} catch (FeignException.NotFound | NumberFormatException e) {
+			return false;
+		}
 
-           item.setUserId(userId);
-           item.setProductId(String.valueOf(request.getProductId()));
-           item.setQuantity(request.getQuantity());
-           item.setPrice(BigDecimal.valueOf(1000.00));
-           cartRepository.save(item);
-            return  true;
-    }
+		ProductResponse product;
+		try {
+			product = productClient.getProductById(Long.valueOf(request.getProductId()));
+		} catch (FeignException.NotFound | NumberFormatException e) {
+			return false;
+		}
 
-    public boolean deleteItemFromCart(String userId, Long productId) {
-        CartItem cartItem = cartRepository.findByUserIdAndProductId(userId, String.valueOf(productId));
-        if(cartItem!= null){
-            cartRepository.deleteByUserIdAndProductId(userId, String.valueOf(productId));
-            return true;
-        }
-        return false;
-    }
+		if (product.getActive() == null || !product.getActive()
+				|| product.getStockQuantity() == null
+				|| product.getStockQuantity() < request.getQuantity()) {
+			return false;
+		}
 
-    public List<CartItem> getCart(String userId) {
-        return cartRepository.findByUserId(userId);
-    }
+		CartItem existingItem = cartRepository.findByUserIdAndProductId(userId, request.getProductId());
+		if (existingItem != null) {
+			existingItem.setQuantity(existingItem.getQuantity() + request.getQuantity());
+			existingItem.setPrice(product.getPrice());
+			cartRepository.save(existingItem);
+			return true;
+		}
+
+		CartItem item = new CartItem();
+		item.setUserId(userId);
+		item.setProductId(request.getProductId());
+		item.setQuantity(request.getQuantity());
+		item.setPrice(product.getPrice());
+		cartRepository.save(item);
+		return true;
+	}
+
+	public boolean deleteItemFromCart(String userId, Long productId) {
+		CartItem cartItem = cartRepository.findByUserIdAndProductId(userId, String.valueOf(productId));
+		if (cartItem != null) {
+			cartRepository.deleteByUserIdAndProductId(userId, String.valueOf(productId));
+			return true;
+		}
+		return false;
+	}
+
+	public List<CartItem> getCart(String userId) {
+		return cartRepository.findByUserId(userId);
+	}
 }
